@@ -2,8 +2,10 @@ from __future__ import absolute_import, division
 
 import copy
 import errno
+import hmac
 import io
 import logging
+from datetime import datetime
 from random import shuffle, uniform
 
 # selectors in stdlib as of py3.4
@@ -224,7 +226,10 @@ class BrokerConnection(object):
         'sasl_plain_password': None,
         'sasl_kerberos_service_name': 'kafka',
         'sasl_kerberos_domain_name': None,
-        'sasl_oauth_token_provider': None
+        'sasl_oauth_token_provider': None,
+        'sasl_aws_msk_iam_access_key_id': None,
+        'sasl_aws_msk_iam_secret_key_id': None,
+        'sasl_aws_msk_region': None,
     }
     SECURITY_PROTOCOLS = ('PLAINTEXT', 'SSL', 'SASL_PLAINTEXT', 'SASL_SSL')
     SASL_MECHANISMS = ('PLAIN', 'GSSAPI', 'OAUTHBEARER', "SCRAM-SHA-256", "SCRAM-SHA-512")
@@ -561,6 +566,8 @@ class BrokerConnection(object):
             return self._try_authenticate_oauth(future)
         elif self.config['sasl_mechanism'].startswith("SCRAM-SHA-"):
             return self._try_authenticate_scram(future)
+        elif self.config['sasl_mechanism'] == 'AWSMSKIAM':
+            return self._try_authenticate_awsmskiam(future)
         else:
             return future.failure(
                 Errors.UnsupportedSaslMechanismError(
@@ -822,6 +829,123 @@ class BrokerConnection(object):
     def _build_oauth_client_request(self):
         token_provider = self.config['sasl_oauth_token_provider']
         return "n,,\x01auth=Bearer {}{}\x01\x01".format(token_provider.token(), self._token_extensions())
+
+
+    def _try_authenticate_awsmskiam(self, future: Future) -> Future:
+        # configure request
+
+        msg = bytes('\0'.join([self.config['sasl_plain_username'],
+                               self.config['sasl_plain_username'],
+                               self.config['sasl_plain_password']]).encode('utf-8'))
+        size = Int32.encode(len(msg))
+
+        err = None
+        close = False
+        with self._lock:
+            if not self._can_send_recv():
+                err = Errors.NodeNotReadyError(str(self))
+                close = False
+            else:
+                try:
+                    self._send_bytes_blocking(size + msg)
+
+                    # The server will send a zero sized message (that is Int32(0)) on success.
+                    # The connection is closed on failure
+                    data = self._recv_bytes_blocking(4)
+
+                except (ConnectionError, TimeoutError) as e:
+                    log.exception("%s: Error receiving reply from server", self)
+                    err = Errors.KafkaConnectionError("%s: %s" % (self, e))
+                    close = True
+
+        if err is not None:
+            if close:
+                self.close(error=err)
+            return future.failure(err)
+
+        # process request
+
+
+        return future.success(True)
+
+    def _build_aws_msk_iam_request(self):
+        access_key_id = self.config['sasl_aws_msk_iam_access_key_id']
+        region = self.config['sasl_aws_msk_region']
+        now = datetime.now()
+        return {
+            'version': '2020_10_22',
+            'host': self.host,
+            'user-agent': 'ruby-kafka',
+            'action': 'kafka-cluster:Connect',
+            'x-amz-algorithm': 'AWS4-HMAC-SHA256',
+            'x-amz-credential': f"{access_key_id}/{now.strftime('%Y%m%d')}/{region}/kafka-cluster/aws4_request",
+            'x-amz-date': now.strftime('%Y%m%dT%H%M%SZ'),
+            'x-amz-signedheaders': 'host',
+            'x-amz-expires': '900',
+            'x-amz-signature': signature(host=host),
+        }
+        return
+
+      def canonical_request(host:)
+        "GET\n" +
+        "/\n" +
+        canonical_query_string + "\n" +
+        canonical_headers(host: host) + "\n" +
+        signed_headers + "\n" +
+        hashed_payload
+      end
+
+      def canonical_query_string(self):
+        now = Time.now
+        everything = [
+        aws_uri_encode("Action") + "=" + aws_uri_encode("kafka-cluster:Connect") + "&" +
+        aws_uri_encode("X-Amz-Algorithm") + "=" + aws_uri_encode("AWS4-HMAC-SHA256") + "&" +
+        aws_uri_encode("X-Amz-Credential") + "=" + aws_uri_encode(@access_key_id + "/" + now.strftime("%Y%m%d") + "/" + @aws_region + "/kafka-cluster/aws4_request") + "&" +
+        aws_uri_encode("X-Amz-Date") + "=" + aws_uri_encode(now.strftime("%Y%m%dT%H%M%SZ")) + "&" +
+        aws_uri_encode("X-Amz-Expires") + "=" + aws_uri_encode("900") + "&" +
+        aws_uri_encode("X-Amz-SignedHeaders") + "=" + aws_uri_encode("host")
+        ]
+
+        return ''.join(everything)
+
+    def canonical_headers(host):
+        return "host" + ":" + host + "\n"
+
+    def signed_headers():
+        return 'host'
+
+    def hashed_payload():
+        return hmac.digest('')
+
+    def string_to_sign(host)
+        no = datetime.now()
+        "AWS4-HMAC-SHA256" + "\n" +
+        now.strftime("%Y%m%dT%H%M%SZ") + "\n" +
+        now.strftime("%Y%m%d") + "/" + @aws_region + "/kafka-cluster/aws4_request" + "\n" +
+        return bin_to_hex(digest.digest(canonical_request(host: host)))
+
+    def _aws_signature(self, host):
+        now = Time.now
+
+        key = f'AWS4{self.SECRET_KEY_ID}'
+
+        values = [
+            datetime.now().strftime('%Y%m%d'),
+            self.AWS_REGION,
+            'kafka-cluster',
+            'aws4_request',
+            string_to_sign(host=host)
+        ]
+
+        for value in values:
+            key = hmac.digest(key, value)
+
+        date_key = OpenSSL::HMAC.digest("SHA256", "AWS4" + @ secret_key_id, now.strftime(""))
+        date_region_key = OpenSSL::HMAC.digest("SHA256", date_key, @ aws_region)
+        date_region_service_key = OpenSSL::HMAC.digest("SHA256", date_region_key, "kafka-cluster")
+        signing_key = OpenSSL::HMAC.digest("SHA256", date_region_service_key, "aws4_request")
+        signature = bin_to_hex(OpenSSL::HMAC.digest("SHA256", signing_key, string_to_sign(host: host)))
+        return key.to_hex()
 
     def _token_extensions(self):
         """

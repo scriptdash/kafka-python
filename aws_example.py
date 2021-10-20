@@ -74,39 +74,23 @@ class Consumer(threading.Thread):
 
 
 def main():
-    Producer().run()
-    # Create 'TOPIC_NAME' topic
-    # try:
-    #     admin = KafkaAdminClient(bootstrap_servers=BOOTSTRAP_SERVERS,
-    #                              sasl_aws_msk_iam_access_key_id=AWS_ACCESS_KEY_ID,
-    #                              sasl_aws_msk_iam_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    #                              sasl_aws_msk_region=AWS_REGION,
-    #                              )
-    #
-    #     topic = NewTopic(name=TOPIC_NAME,
-    #                      num_partitions=1,
-    #                      replication_factor=1)
-    #     admin.create_topics([topic])
-    # except Exception as e:
-    #     print(str(e), file=sys.stderr)
-    #
-    # tasks = [
-    #     Producer(),
-    #     Consumer()
-    # ]
-    #
-    # # Start threads of a publisher/producer and a subscriber/consumer to 'my-topic' Kafka topic
-    # for t in tasks:
-    #     t.start()
-    #
-    # time.sleep(10)
-    #
-    # # Stop threads
-    # for task in tasks:
-    #     task.stop()
-    #
-    # for task in tasks:
-    #     task.join()
+    tasks = [
+        Producer(),
+        Consumer()
+    ]
+
+    # Start threads of a publisher/producer and a subscriber/consumer to 'my-topic' Kafka topic
+    for t in tasks:
+        t.start()
+
+    time.sleep(10)
+
+    # Stop threads
+    for task in tasks:
+        task.stop()
+
+    for task in tasks:
+        task.join()
 
 
 if __name__ == "__main__":

@@ -674,6 +674,8 @@ class BrokerConnection(object):
         return future.success(True)
 
     def _try_authenticate_aws_msk_iam(self, future):
+        # very loudly announce we have reach this
+        logging.info("\n\n\n\nwe have reached the try auth method\n\n\n\n")
         session = BotoSession()
         credentials = session.get_credentials().get_frozen_credentials()
         client = AwsMskIamClient(
@@ -1286,6 +1288,8 @@ class BrokerConnection(object):
         ]
 
         for version, request in test_cases:
+            # very loudly announce that we are checking versions
+            logging.info(f"\n\n\nchecking {version=} {request=}\n\n\n")
             if not self.connect_blocking(timeout_at - time.time()):
                 reset_override_configs()
                 raise Errors.NodeNotReadyError()

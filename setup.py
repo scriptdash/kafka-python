@@ -41,6 +41,7 @@ setup(
         "lz4": ["lz4"],
         "snappy": ["python-snappy"],
         "zstd": ["python-zstandard"],
+        "botocore": ["botocore"],
     },
     cmdclass={"test": Tox},
     packages=find_packages(exclude=['test']),

@@ -15,7 +15,7 @@ BOOTSTRAP_SERVERS = environ.get("KAFKA_BROKERS")
 AWS_ACCESS_KEY_ID = environ.get("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = environ.get("AWS_REGION")
-TOPIC_NAME = 'data-team-dev'
+TOPIC_NAME = environ["INTAKES_REQUEST_TOPIC"]
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -73,7 +73,7 @@ class Consumer(threading.Thread):
 def main():
     tasks = [
         Producer(),
-        Consumer()
+        # Consumer()
     ]
 
     # Start threads of a publisher/producer and a subscriber/consumer to 'my-topic' Kafka topic

@@ -17,12 +17,6 @@ AWS_SECRET_ACCESS_KEY = environ.get("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = environ.get("AWS_REGION")
 TOPIC_NAME = 'data-team-dev'
 
-SESSION = botocore.session.Session(
-    aws_access_key_id=AWS_ACCESS_KEY_ID,
-    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-    region_name=AWS_REGION,
-)
-
 class Producer(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)

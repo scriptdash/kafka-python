@@ -32,6 +32,7 @@ class Producer(threading.Thread):
         producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS,
                                  security_protocol='SASL_SSL',
                                  sasl_mechanism='AWS_MSK_IAM',
+                                 api_version=(2,8,0),
                                  # sasl_aws_msk_iam_access_key_id=AWS_ACCESS_KEY_ID,
                                  # sasl_aws_msk_iam_secret_access_key=AWS_SECRET_ACCESS_KEY,
                                  # sasl_aws_msk_region=AWS_REGION,

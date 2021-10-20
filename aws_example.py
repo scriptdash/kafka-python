@@ -33,9 +33,6 @@ class Producer(threading.Thread):
                                  security_protocol='SASL_SSL',
                                  sasl_mechanism='AWS_MSK_IAM',
                                  api_version=(2,8,0),
-                                 # sasl_aws_msk_iam_access_key_id=AWS_ACCESS_KEY_ID,
-                                 # sasl_aws_msk_iam_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                                 # sasl_aws_msk_region=AWS_REGION,
                                  )
 
         while not self.stop_event.is_set():
@@ -58,9 +55,9 @@ class Consumer(threading.Thread):
         consumer = KafkaConsumer(bootstrap_servers=BOOTSTRAP_SERVERS,
                                  auto_offset_reset='earliest',
                                  consumer_timeout_ms=1000,
-                                 sasl_aws_msk_iam_access_key_id=AWS_ACCESS_KEY_ID,
-                                 sasl_aws_msk_iam_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                                 sasl_aws_msk_region=AWS_REGION,
+                                 security_protocol='SASL_SSL',
+                                 sasl_mechanism='AWS_MSK_IAM',
+                                 api_version=(2,8,0),
                                  )
         consumer.subscribe([TOPIC_NAME])
 

@@ -3,7 +3,9 @@ import threading, time
 
 from kafka import KafkaAdminClient, KafkaConsumer, KafkaProducer
 from kafka.admin import NewTopic
+import sys
 
+BOOTSTRAP_SERVERS = 'localhost:9092'
 
 class Producer(threading.Thread):
     def __init__(self):
@@ -14,7 +16,7 @@ class Producer(threading.Thread):
         self.stop_event.set()
 
     def run(self):
-        producer = KafkaProducer(bootstrap_servers='localhost:9092')
+        producer = KafkaProducer(bootstrap_servers=BOOTSTRAP_SERVERS)
 
         while not self.stop_event.is_set():
             producer.send('my-topic', b"test")
@@ -33,14 +35,14 @@ class Consumer(threading.Thread):
         self.stop_event.set()
 
     def run(self):
-        consumer = KafkaConsumer(bootstrap_servers='localhost:9092',
+        consumer = KafkaConsumer(bootstrap_servers=BOOTSTRAP_SERVERS,
                                  auto_offset_reset='earliest',
                                  consumer_timeout_ms=1000)
         consumer.subscribe(['my-topic'])
 
         while not self.stop_event.is_set():
             for message in consumer:
-                print(message)
+                print(f"consumer: {message}")
                 if self.stop_event.is_set():
                     break
 
@@ -50,14 +52,14 @@ class Consumer(threading.Thread):
 def main():
     # Create 'my-topic' Kafka topic
     try:
-        admin = KafkaAdminClient(bootstrap_servers='localhost:9092')
+        admin = KafkaAdminClient(bootstrap_servers=BOOTSTRAP_SERVERS)
 
         topic = NewTopic(name='my-topic',
                          num_partitions=1,
                          replication_factor=1)
         admin.create_topics([topic])
-    except Exception:
-        pass
+    except Exception as e:
+        print(str(e), file=sys.stderr)
 
     tasks = [
         Producer(),
